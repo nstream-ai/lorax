@@ -127,7 +127,7 @@ class LoraxService(generate_pb2_grpc.LoraxServiceServicer):
         if not self.model.supports_embeddings:
             raise ValueError("Model does not support embeddings")
 
-        batch = self.model.batch_type.from_pb(
+        batch = self.model.batch_type.from_pb_embed(
             request.batch,
             self.model.tokenizer,
             self.model.tokenizers,
@@ -248,6 +248,9 @@ def serve(
     adapter_source: str,
     speculative_tokens: int,
     preloaded_adapter_ids: List[str],
+    merge_adapter_weights: bool,
+    preloaded_adapter_source: str,
+    embedding_dim: Optional[int] = None,
 ):
     async def serve_inner(
         model_id: str,
@@ -261,6 +264,9 @@ def serve(
         trust_remote_code: bool,
         speculative_tokens: int,
         preloaded_adapter_ids: List[str],
+        merge_adapter_weights: bool,
+        preloaded_adapter_source: str,
+        embedding_dim: Optional[int] = None,
     ):
         unix_socket_template = "unix://{}-{}"
         if sharded:
@@ -282,6 +288,8 @@ def serve(
                 trust_remote_code,
                 source,
                 adapter_source,
+                merge_adapter_weights,
+                embedding_dim,
             )
         except Exception:
             logger.exception("Error when initializing model")
@@ -305,7 +313,7 @@ def serve(
         if preloaded_adapter_ids:
             logger.info(f"Preloading {len(preloaded_adapter_ids)} adapters")
 
-            _adapter_source = enum_string_to_adapter_source(adapter_source)
+            _adapter_source = enum_string_to_adapter_source(preloaded_adapter_source)
             adapter_preload_api_token = None
             if _adapter_source == generate_pb2.AdapterSource.PBASE:
                 # Derive the predibase token from an env variable if we are using predibase adapters.
@@ -418,5 +426,8 @@ def serve(
             trust_remote_code,
             speculative_tokens,
             preloaded_adapter_ids,
+            merge_adapter_weights,
+            preloaded_adapter_source,
+            embedding_dim,
         )
     )
